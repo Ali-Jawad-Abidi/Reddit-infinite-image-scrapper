@@ -41,47 +41,23 @@ proxyDict = {
               "http"  : http_proxy, 
               "https" : https_proxy
             }
-subreddit=sys.argv[2];
+subreddit=sys.argv[1];
 
-
-if sys.argv[1]=="Reddit":
-	new_url="https://gateway.reddit.com/desktopapi/v1/subreddits/"+subreddit+"?dist=25&layout=card&sort=hot&allow_over18=1&include=prefsSubreddit"
-	for i in range(0,5):
-		p=requests.get(new_url,headers=headers,proxies=proxyDict)
-		s=json.loads(p.text)				
-		for posts in s["posts"]:
+new_url="https://gateway.reddit.com/desktopapi/v1/subreddits/"+subreddit+"?dist=25&layout=card&sort=hot&allow_over18=1&include=prefsSubreddit"
+for i in range(0,5):
+	p=requests.get(new_url,headers=headers,proxies=proxyDict)
+	s=json.loads(p.text)				
+	for posts in s["posts"]:
+		try:
 			try:
-				try:
-					url = s["posts"][posts]["source"]["url"]
-				except:
-					url=s["posts"][posts]["preview"]["url"]					
+				url = s["posts"][posts]["source"]["url"]
 			except:
-				continue
-			
-			name = (s["posts"][posts]["title"]).replace(" ","").split("/")[0]
-			downloadUrl(url,name)
-		after=s["postIds"][-1]
-		new_url="https://gateway.reddit.com/desktopapi/v1/subreddits/UHDnsfw?after="+after+"&dist=25&layout=card&sort=hot&allow_over18=1&include=prefsSubreddit"
+				url=s["posts"][posts]["preview"]["url"]					
+		except:
+			continue
 
-else:
-	new_url="https://9gag.com/v1/group-posts/group/funny/type/hot?"
-	for i in range(0,1):
-		p=requests.get(new_url)#,headers=headers)
-		s=json.loads(p.text)		
-		for posts in s["data"]["posts"]:
-			if(posts["type"]=="Photo"):
-				ext=".jpg"
-				url=posts["images"]["image700"]["url"]
-			elif(posts["type"]=="Animated"):
-				ext=".mp4"
-				url=posts["images"]["image460sv"]["url"]
-			name=(posts["title"]).replace(" ","")+ext
-			
-			downloadUrl(url,name)
-
-
-
-			urls.append(str((posts["images"]["image700"]["url"]).split("/")[-1].split("_")[0]))
-		new_url="https://9gag.com/v1/group-posts/group/nsfw/type/hot?"
-		new_url+=s["data"]["nextCursor"]
-#print urls
+		name = (s["posts"][posts]["title"]).replace(" ","").split("/")[0]
+		downloadUrl(url,name)
+	after=s["postIds"][-1]
+	new_url="https://gateway.reddit.com/desktopapi/v1/subreddits/UHDnsfw?after="+after+"&dist=25&layout=card&sort=hot&allow_over18=1&include=prefsSubreddit"
+	
