@@ -1,95 +1,87 @@
 import requests
-from lxml import html
+import shutil
+import json
 import sys
 
-image_exts = ['.jpg', '.jpeg', '.gif', '.png']
-def is_image(url):
-    if any(image_ext in url for image_ext in image_exts):
-        return True
-    return False
 
-def save_image(image_file, image_name, image_extension):
-    directory = args.root_directory + image_name + image_extension
-    f = open(directory, 'w')
-    f.write(image_file)
-    f.close()
-    print 'Saving image as ' + directory
+#download handler once the url to image has been extracted
+def downloadUrl(url , name):
+	response=requests.get(url, stream=True)
+	with open(name, 'wb') as f:
+		for chunk in response.iter_content(chunk_size=1024): 
+			    if chunk: # filter out keep-alive new chunks
+				f.write(chunk)
 
-def return_links(page): 
-    page = requests.get(page)
-    if page.status_code == 200:
-        page = html.fromstring(page.text)
-        urls = page.xpath('//a/@href')
-        return urls
-    else:
-        print 'Bad response from server.'
-        sys.exit()
 
-def get_imgur_gallery_links(gallery_address):
-    image_urls = []
-    gallery = requests.get(gallery_address)
-    if gallery.status_code == 200:
-        gallery_page = html.fromstring(gallery.text)
-        gallery_image_urls = gallery_page.xpath('//div[@class="image textbox "]/a/@href')
-        
-        gallery_image_urls = ['http:' + i for i in gallery_image_urls]
-        return gallery_image_urls
-    else:
-        print 'Bad response from gallery server.'
-        sys.exit()
+urls=[]
+"""
+PrettyGirls
 
-def return_image_links(page):
-    
-    page = requests.get(page)
-    
-    if page.status_code == 200:
-        
-        page = html.fromstring(page.text)
-        
-        urls = page.xpath('//p[@class="title"]/a/@href')
-        image_urls = []
-        for url in urls:
-            if is_image(url):
-                image_urls.append(url)                      
-            else:
-                image_urls.extend(get_imgur_gallery_links(url))
-        return image_urls 
-    else:
-        print 'Bad response from reddit server.'
-        sys.exit()
 
-def get_top_pics(subreddit):
-    urls = return_image_links('http://www.reddit.com/r/' + subreddit + '/top')
-    print 'Saving ' + str(len(urls)) + ' images...zzz'
-    
-    count = 0
-    for i in urls:
-        while not is_image(i):
-            i = i[:-1]
-        count += 1
-        image_file = requests.get(i)
-        filename = 'image-' + str(count)
-        if i.endswith('.jpg'):
-            save_image(image_file.content, filename, '.jpg')
-        elif i.endswith('.jpeg'):
-            save_image(image_file.content, filename, '.jpeg')
-        elif i.endswith('.gif'):
-            save_image(image_file.content, filename, '.gif')
-        elif i.endswith('.png'):
-            save_image(image_file.content, filename, '.png')
+https://gateway.reddit.com/desktopapi/v1/subreddits/prettygirls?rtj=only&redditWebClient=web2x&app=web2x-client-production&after=t3_byea6s&dist=25&layout=card&sort=hot&allow_over18=1&include=prefsSubreddit"""
 
-if __name__ == '__main__':
-    import argparse
-    import os
-    
-    parser = argparse.ArgumentParser()
-    parser.add_argument('-d', '--directory', type=str, dest='root_directory',
-                        default=os.getcwd(), help='Designate desination direcotry for images')
-    parser.add_argument('-s', '--subreddit', type=str, dest='subreddit', required=True,
-                        help='Designate target subreddit')
-    args = parser.parse_args()
-    
-    if not args.root_directory.endswith('/'):
-        args.root_directory += '/'
 
-    get_top_pics(args.subreddit)
+headers={'Host': 'gateway.reddit.com',
+'User-Agent': 'Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101 Firefox/60.0',
+'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+'Accept-Language': 'en-US,en;q=0.5',
+'Cookie':'',
+'Connection': 'keep-alive',
+'Upgrade-Insecure-Requests': '1'
+}
+
+ext=""
+after=""
+#change the proxies as you see fit or dont use at all
+http_proxy  = "http://95.88.192.108:3128"
+https_proxy = "https://95.88.192.108:3128"
+#ftp_proxy   = "ftp://10.10.1.10:3128"
+
+proxyDict = { 
+              "http"  : http_proxy, 
+              "https" : https_proxy
+            }
+subreddit=sys.argv[2];
+
+
+if sys.argv[1]=="Reddit":
+	new_url="https://gateway.reddit.com/desktopapi/v1/subreddits/"+subreddit+"?dist=25&layout=card&sort=hot&allow_over18=1&include=prefsSubreddit"
+	for i in range(0,5):
+		p=requests.get(new_url,headers=headers,proxies=proxyDict)
+		s=json.loads(p.text)				
+		for posts in s["posts"]:
+			try:
+				try:
+					url = s["posts"][posts]["source"]["url"]
+				except:
+					url=s["posts"][posts]["preview"]["url"]					
+			except:
+				continue
+			
+			name = (s["posts"][posts]["title"]).replace(" ","").split("/")[0]
+			downloadUrl(url,name)
+		after=s["postIds"][-1]
+		new_url="https://gateway.reddit.com/desktopapi/v1/subreddits/UHDnsfw?after="+after+"&dist=25&layout=card&sort=hot&allow_over18=1&include=prefsSubreddit"
+
+else:
+	new_url="https://9gag.com/v1/group-posts/group/funny/type/hot?"
+	for i in range(0,1):
+		p=requests.get(new_url)#,headers=headers)
+		s=json.loads(p.text)		
+		for posts in s["data"]["posts"]:
+			if(posts["type"]=="Photo"):
+				ext=".jpg"
+				url=posts["images"]["image700"]["url"]
+			elif(posts["type"]=="Animated"):
+				ext=".mp4"
+				url=posts["images"]["image460sv"]["url"]
+			name=(posts["title"]).replace(" ","")+ext
+			
+			downloadUrl(url,name)
+
+
+
+			urls.append(str((posts["images"]["image700"]["url"]).split("/")[-1].split("_")[0]))
+		new_url="https://9gag.com/v1/group-posts/group/nsfw/type/hot?"
+		new_url+=s["data"]["nextCursor"]
+#print urls
